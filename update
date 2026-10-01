@@ -1,0 +1,332 @@
+#!/usr/bin/env bash
+# Quantus Network Node — Update & Management Script
+# This script is downloaded by StratumOS and used for updates and control
+
+set -euo pipefail
+
+INSTALL_DIR="/opt/quantus-node"
+DATA_DIR="${INSTALL_DIR}/data"
+BIN_DIR="${INSTALL_DIR}/bin"
+LOG_DIR="${INSTALL_DIR}/logs"
+CONFIG_FILE="${INSTALL_DIR}/config"
+SERVICE_NAME="quantus-node"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+log() { echo -e "${GREEN}[quantus-node]${NC} $*"; }
+warn() { echo -e "${YELLOW}[quantus-node]${NC} $*"; }
+error() { echo -e "${RED}[quantus-node]${NC} $*" >&2; }
+info() { echo -e "${BLUE}[quantus-node]${NC} $*"; }
+
+# Source config if exists
+if [[ -f "$CONFIG_FILE" ]]; then
+    # shellcheck source=/dev/null
+    source "$CONFIG_FILE"
+fi
+
+# ── Detect Architecture ───────────────────────────────────────────────
+detect_arch() {
+    local arch
+    arch=$(uname -m)
+    case "$arch" in
+        x86_64|amd64) echo "x86_64-unknown-linux-gnu" ;;
+        aarch64|arm64) echo "aarch64-unknown-linux-gnu" ;;
+        *) echo "" ;;
+    esac
+}
+
+# ── Get Latest Release ────────────────────────────────────────────────
+get_latest_release() {
+    local repo="$1"
+    curl -s "https://api.github.com/repos/${repo}/releases/latest" | \
+        jq -r '.tag_name // empty' 2>/dev/null || echo ""
+}
+
+# ── Download Binary ───────────────────────────────────────────────────
+# Handles two asset naming conventions:
+#   Node:   quantus-node-{version}-{arch}.tar.gz
+#   Miner:  quantus-miner-{platform}  (no version, no extension)
+download_binary() {
+    local repo="$1"
+    local version="$2"
+    local arch="$3"
+    local output_dir="$4"
+    local binary_name="$5"
+
+    local asset_name
+
+    if [[ "$binary_name" == "quantus-miner" ]]; then
+        local platform
+        case "$arch" in
+            x86_64-unknown-linux-gnu) platform="linux-x86_64" ;;
+            aarch64-unknown-linux-gnu) platform="linux-aarch64" ;;
+            *) error "Unsupported miner architecture: $arch"; return 1 ;;
+        esac
+        asset_name="${binary_name}-${platform}"
+    else
+        asset_name="${binary_name}-${version}-${arch}.tar.gz"
+    fi
+
+    local url="https://github.com/${repo}/releases/download/${version}/${asset_name}"
+
+    info "Downloading ${binary_name} ${version}..."
+    mkdir -p "$output_dir"
+    local tmp_file
+    tmp_file=$(mktemp)
+
+    if ! curl -fSL --progress-bar -o "$tmp_file" "$url" 2>&1; then
+        error "Failed to download ${binary_name}"
+        rm -f "$tmp_file"
+        return 1
+    fi
+
+    if tar -xzf "$tmp_file" -C "$output_dir" 2>/dev/null; then
+        :
+    elif tar -xf "$tmp_file" -C "$output_dir" 2>/dev/null; then
+        :
+    else
+        cp "$tmp_file" "${output_dir}/${binary_name}"
+    fi
+    rm -f "$tmp_file"
+    chmod +x "${output_dir}/${binary_name}"
+    log "Updated ${binary_name}"
+}
+
+# ── Update Binaries ───────────────────────────────────────────────────
+update_binaries() {
+    local arch
+    arch=$(detect_arch)
+    if [[ -z "$arch" ]]; then
+        error "Unsupported architecture"
+        return 1
+    fi
+
+    local node_version="$NODE_VERSION"
+    if [[ -z "$node_version" ]]; then
+        node_version=$(get_latest_release "Quantus-Network/chain")
+    fi
+
+    local miner_version="$MINER_VERSION"
+    if [[ -z "$miner_version" ]]; then
+        miner_version=$(get_latest_release "Quantus-Network/quantus-miner")
+    fi
+
+    info "Updating to node ${node_version}, miner ${miner_version}"
+
+    # Stop service before update
+    systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+
+    download_binary "Quantus-Network/chain" "$node_version" "$arch" "$BIN_DIR" "quantus-node"
+
+    if [[ "$ENABLE_EXTERNAL_MINER" == "true" && -n "$miner_version" ]]; then
+        download_binary "Quantus-Network/quantus-miner" "$miner_version" "$arch" "$BIN_DIR" "quantus-miner" || {
+            warn "Failed to update miner"
+        }
+    fi
+
+    # Restart service
+    systemctl start "$SERVICE_NAME" 2>/dev/null || true
+    log "Update complete"
+}
+
+# ── Start Node ────────────────────────────────────────────────────────
+start_node() {
+    log "Starting Quantus node..."
+    systemctl start "$SERVICE_NAME"
+    sleep 2
+    systemctl status "$SERVICE_NAME" --no-pager
+}
+
+# ── Stop Node ─────────────────────────────────────────────────────────
+stop_node() {
+    log "Stopping Quantus node..."
+    systemctl stop "$SERVICE_NAME"
+}
+
+# ── Restart Node ──────────────────────────────────────────────────────
+restart_node() {
+    log "Restarting Quantus node..."
+    systemctl restart "$SERVICE_NAME"
+    sleep 2
+    systemctl status "$SERVICE_NAME" --no-pager
+}
+
+# ── Node Status ───────────────────────────────────────────────────────
+node_status() {
+    systemctl status "$SERVICE_NAME" --no-pager 2>/dev/null || {
+        error "Service not found — is it installed?"
+        return 1
+    }
+}
+
+# ── View Logs ─────────────────────────────────────────────────────────
+view_logs() {
+    local lines="${1:-50}"
+    journalctl -u "$SERVICE_NAME" -n "$lines" --no-pager -f
+}
+
+# ── Show Status (detailed) ────────────────────────────────────────────
+show_status() {
+    echo "═══════════════════════════════════════════════════"
+    echo "  Quantus Network Node — Status"
+    echo "═══════════════════════════════════════════════════"
+
+    # Service status
+    if systemctl is-active --quiet "$SERVICE_NAME"; then
+        echo -e "Service:   ${GREEN}Running${NC}"
+    else
+        echo -e "Service:   ${RED}Stopped${NC}"
+    fi
+
+    # Config
+    if [[ -f "$CONFIG_FILE" ]]; then
+        echo "Config:    ${CONFIG_FILE}"
+        echo "Chain:     ${CHAIN:-not set}"
+        echo "Node Name: ${NODE_NAME:-not set}"
+        if [[ -n "${INNER_HASH:-}" ]]; then
+            echo "Inner Hash: ${INNER_HASH:0:8}...${INNER_HASH: -8}"
+        else
+            echo -e "Inner Hash: ${RED}not set${NC}"
+        fi
+    else
+        echo -e "Config:    ${RED}not found${NC}"
+    fi
+
+    # Binaries
+    if [[ -x "${BIN_DIR}/quantus-node" ]]; then
+        echo "Node:      $(${BIN_DIR}/quantus-node --version 2>/dev/null || echo 'installed')"
+    else
+        echo -e "Node:      ${RED}not installed${NC}"
+    fi
+
+    if [[ -x "${BIN_DIR}/quantus-miner" ]]; then
+        echo "Miner:     $(${BIN_DIR}/quantus-miner --version 2>/dev/null || echo 'installed')"
+    else
+        echo "Miner:     not installed"
+    fi
+
+    # Ports
+    echo ""
+    echo "Ports:"
+    ss -tlnp 2>/dev/null | grep -E "(${P2P_PORT:-30333}|${RPC_PORT:-9944}|${PROMETHEUS_PORT:-9615})" || echo "  No ports listening"
+    ss -ulnp 2>/dev/null | grep "${MINER_PORT:-9833}" || echo "  Miner port not listening"
+
+    # Data usage
+    if [[ -d "$DATA_DIR" ]]; then
+        echo ""
+        echo "Data usage: $(du -sh "$DATA_DIR" 2>/dev/null | cut -f1)"
+    fi
+
+    echo "═══════════════════════════════════════════════════"
+}
+
+# ── Purge Chain Data ──────────────────────────────────────────────────
+purge_chain() {
+    warn "This will delete all chain data!"
+    read -rp "Are you sure? [y/N] " confirm
+    if [[ "$confirm" =~ ^[Yy]$ ]]; then
+        systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+        rm -rf "${DATA_DIR}/chains/${CHAIN:-mainnet}"
+        log "Chain data purged for ${CHAIN:-mainnet}"
+        systemctl start "$SERVICE_NAME" 2>/dev/null || true
+    else
+        info "Cancelled"
+    fi
+}
+
+# ── Uninstall ─────────────────────────────────────────────────────────
+uninstall() {
+    warn "This will remove the Quantus node!"
+    read -rp "Are you sure? [y/N] " confirm
+    if [[ "$confirm" =~ ^[Yy]$ ]]; then
+        systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+        systemctl disable "$SERVICE_NAME" 2>/dev/null || true
+        rm -f "/etc/systemd/system/${SERVICE_NAME}.service"
+        systemctl daemon-reload
+        rm -rf "$INSTALL_DIR"
+        log "Quantus node uninstalled"
+    else
+        info "Cancelled"
+    fi
+}
+
+# ── Generate Keys ─────────────────────────────────────────────────────
+generate_keys() {
+    log "Generating keys..."
+
+    if [[ ! -x "${BIN_DIR}/quantus-node" ]]; then
+        error "Node binary not found — run install first"
+        return 1
+    fi
+
+    # Node key
+    if [[ -f "${NODE_KEY_FILE:-/opt/quantus-node/data/node_key.p2p}" ]]; then
+        warn "Node key already exists"
+    else
+        "${BIN_DIR}/quantus-node" key generate-node-key --file "${NODE_KEY_FILE:-/opt/quantus-node/data/node_key.p2p}"
+        log "Node key generated"
+    fi
+
+    # Wormhole key
+    echo ""
+    log "Generating wormhole keypair..."
+    "${BIN_DIR}/quantus-node" key quantus --scheme wormhole
+    echo ""
+    info "Save the inner_hash and set it in ${CONFIG_FILE}"
+}
+
+# ── Main ──────────────────────────────────────────────────────────────
+case "${1:-}" in
+    --update|update)
+        update_binaries
+        ;;
+    --start|start)
+        start_node
+        ;;
+    --stop|stop)
+        stop_node
+        ;;
+    --restart|restart)
+        restart_node
+        ;;
+    --status|status)
+        show_status
+        ;;
+    --logs|logs)
+        view_logs "${2:-50}"
+        ;;
+    --purge|purge)
+        purge_chain
+        ;;
+    --uninstall|uninstall)
+        uninstall
+        ;;
+    --keys|keys)
+        generate_keys
+        ;;
+    --help|-h|help)
+        echo "Quantus Network Node — Management Script"
+        echo ""
+        echo "Usage: $0 [command]"
+        echo ""
+        echo "Commands:"
+        echo "  --update      Update node and miner binaries"
+        echo "  --start       Start the node"
+        echo "  --stop        Stop the node"
+        echo "  --restart     Restart the node"
+        echo "  --status      Show detailed status"
+        echo "  --logs [N]    View last N log lines (default: 50)"
+        echo "  --purge       Delete chain data and resync"
+        echo "  --keys        Generate node and wormhole keys"
+        echo "  --uninstall   Remove the node completely"
+        echo "  --help        Show this help"
+        ;;
+    *)
+        show_status
+        ;;
+esac

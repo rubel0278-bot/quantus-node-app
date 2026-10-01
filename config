@@ -1,0 +1,72 @@
+# Quantus Network Node — Default Configuration
+# This file is sourced by install.sh and update scripts
+
+# ── Chain ──────────────────────────────────────────────────────────────
+# Options: mainnet | heisenberg
+CHAIN=mainnet
+
+# ── Node Identity ─────────────────────────────────────────────────────
+NODE_NAME="stratum-$(hostname -s 2>/dev/null || echo 'node')"
+NODE_KEY_FILE="/opt/quantus-node/data/node_key.p2p"
+
+# ── Mining ─────────────────────────────────────────────────────────────
+# Wormhole inner hash (32-byte hex, no 0x prefix)
+# Generate with: quantus-node key quantus --scheme wormhole
+INNER_HASH=""
+
+# Enable external miner (QUIC server on MINER_PORT)
+ENABLE_EXTERNAL_MINER=true
+MINER_PORT=9833
+CPU_WORKERS=4
+GPU_DEVICES=0
+
+# ── Paths ─────────────────────────────────────────────────────────────
+BASE_PATH="/opt/quantus-node/data"
+BIN_DIR="/opt/quantus-node/bin"
+LOG_DIR="/opt/quantus-node/logs"
+
+# ── Ports ─────────────────────────────────────────────────────────────
+P2P_PORT=30333
+RPC_PORT=9944
+PROMETHEUS_PORT=9615
+
+# ── Sync ──────────────────────────────────────────────────────────────
+SYNC_MODE=full
+MAX_BLOCKS_PER_REQUEST=64
+
+# ── Version ───────────────────────────────────────────────────────────
+# Pin to a specific release tag, or leave empty for latest
+NODE_VERSION=""
+MINER_VERSION=""
+
+# ── Resource Limits ───────────────────────────────────────────────────
+# Maximum memory usage in MB (0 = unlimited)
+MAX_MEMORY_MB=0
+# Maximum CPU cores to use for mining (0 = all available)
+MAX_CPU_CORES=0
+
+# ── StratumOS Integration ─────────────────────────────────────────────
+# Enable StratumOS dashboard integration
+STRATUM_INTEGRATION=true
+# Web dashboard port (for StratumOS panel)
+DASHBOARD_PORT=8080
+
+# ── Security ──────────────────────────────────────────────────────────
+# Restrict RPC to localhost only (recommended)
+RPC_LOCALHOST_ONLY=true
+# Enable miner auth token (always enabled in v1.0.1+)
+MINER_AUTH_ENABLED=true
+
+# ── Logging ───────────────────────────────────────────────────────────
+# Log level: error | warn | info | debug | trace
+LOG_LEVEL=info
+# Log file path
+LOG_FILE="/opt/quantus-node/logs/quantus-node.log"
+# Enable Prometheus metrics
+ENABLE_METRICS=true
+
+# ── Update ────────────────────────────────────────────────────────────
+# Auto-check for updates (true/false)
+AUTO_UPDATE_CHECK=true
+# Update check interval in hours
+UPDATE_CHECK_INTERVAL=24

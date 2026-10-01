@@ -1,0 +1,38 @@
+name: Build and Package
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create distribution package
+        run: |
+          mkdir -p dist
+          tar -czf dist/quantus-node-app-${GITHUB_REF_NAME}.tar.gz \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='dist' \
+            --exclude='data' \
+            --exclude='bin' \
+            --exclude='logs' \
+            --exclude='__pycache__' \
+            --exclude='*.pyc' \
+            .
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum quantus-node-app-*.tar.gz > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: quantus-node-app-dist
+          path: dist/

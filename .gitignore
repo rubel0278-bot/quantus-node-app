@@ -1,0 +1,31 @@
+# Binaries
+bin/
+*.tar.gz
+*.zip
+
+# Data
+data/
+chains/
+
+# Logs
+logs/
+*.log
+
+# Keys
+*.p2p
+node_key*
+
+# Config overrides
+config.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Node
+node_modules/

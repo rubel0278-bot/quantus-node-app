@@ -1,0 +1,48 @@
+name: Test
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test shell scripts syntax
+        run: |
+          bash -n install.sh
+          bash -n update
+          bash -n config
+          bash -n stratum-init.sh
+          bash -n scripts/setup-node.sh
+          bash -n scripts/generate-keys.sh
+          bash -n scripts/monitor.sh
+          bash -n windows-init
+          bash -n chrome-init
+          bash -n menu-init
+          echo "All shell scripts pass syntax check"
+
+      - name: Validate JSON
+        run: |
+          python3 -m json.tool app.json > /dev/null
+          echo "app.json is valid JSON"
+
+      - name: Check required files
+        run: |
+          for f in app.json install.sh update config service/quantus-node.service scripts/setup-node.sh scripts/generate-keys.sh scripts/monitor.sh stratum-init.sh windows-init chrome-init menu-init; do
+            if [ ! -f "$f" ]; then
+              echo "Missing: $f"
+              exit 1
+            fi
+          done
+          echo "All required files present"
+
+      - name: Test Python scripts
+        run: |
+          python3 -m py_compile www/server.py
+          python3 -m py_compile www/api.py
+          echo "Python scripts compile successfully"

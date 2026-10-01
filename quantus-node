@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Quantus Network Node — Main Entry Point
+# This is the primary script that StratumOS calls
+# It delegates to the appropriate subcommand
+
+set -euo pipefail
+
+INSTALL_DIR="/opt/quantus-node"
+UPDATE_SCRIPT="${INSTALL_DIR}/update"
+
+# If called from the app directory (not installed), run install
+if [[ "${1:-}" == "--install" ]]; then
+    shift
+    exec "${INSTALL_DIR}/install.sh" "$@"
+fi
+
+# If update script exists, delegate to it
+if [[ -x "$UPDATE_SCRIPT" ]]; then
+    exec "$UPDATE_SCRIPT" "$@"
+fi
+
+# Fallback: show help
+echo "Quantus Network Node — StratumOS Application"
+echo ""
+echo "This app has not been installed yet."
+echo "Run: /opt/quantus-node/install.sh --full"
+echo ""
+echo "Or from the repository:"
+echo "  ./install.sh --full"
