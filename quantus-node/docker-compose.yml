@@ -29,7 +29,7 @@ services:
       - no-new-privileges:true
 
   dashboard:
-    build: ./dashboard
+    image: ghcr.io/rubel0278-bot/quantus-node-dashboard:v1.0.0@sha256:528c0fdb05faff8661016b7732e8921384ffec7511ee9c3594f149fe211ed2a1
     restart: unless-stopped
     depends_on:
       node:
