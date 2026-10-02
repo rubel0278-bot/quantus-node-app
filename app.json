@@ -1,19 +1,17 @@
 {
   "name": "quantus-node",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Quantus Network Node - QPoW mining node for StratumOS",
   "author": "Quantus Network",
   "license": "MIT",
   "category": "mining",
   "tags": ["blockchain", "mining", "quantus", "qpow", "cryptocurrency"],
   "repository": "https://github.com/Quantus-Network/chain",
-  "binary_url": "https://github.com/Quantus-Network/chain/releases",
-  "miner_url": "https://github.com/Quantus-Network/quantus-miner/releases",
+  "binary_url": "https://github.com/Quantus-Network/chain/releases/tag/v1.0.2-Qm",
   "ports": {
     "p2p": 30333,
     "rpc": 9944,
-    "prometheus": 9615,
-    "miner": 9833
+    "prometheus": 9615
   },
   "chains": ["mainnet", "heisenberg"],
   "default_chain": "mainnet",
@@ -21,7 +19,7 @@
   "install_path": "/opt/quantus-node",
   "data_path": "/opt/quantus-node/data",
   "config_file": "/opt/quantus-node/config",
-  "supported_arch": ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"],
+  "supported_arch": ["x86_64-unknown-linux-gnu"],
   "supported_os": ["linux"],
   "dependencies": ["curl", "wget", "tar", "jq"],
   "auto_start": true,

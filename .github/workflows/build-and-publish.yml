@@ -11,12 +11,82 @@ on:
 env:
   REGISTRY: ghcr.io
   NODE_IMAGE: ghcr.io/rubel0278-bot/quantus-node
-  MINER_IMAGE: ghcr.io/rubel0278-bot/quantus-miner
-  DASHBOARD_IMAGE: ghcr.io/rubel0278-bot/quantus-dashboard
 
 jobs:
-  build-node:
+  build-and-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Quantus Node image for local CI testing
+        uses: docker/build-push-action@v5
+        with:
+          context: ./node
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: quantus-node:test
+
+      - name: Verify Quantus binary is present
+        run: |
+          set -e
+          docker run --rm --entrypoint test quantus-node:test -x /usr/local/bin/quantus-node
+          docker run --rm --entrypoint /usr/local/bin/quantus-node quantus-node:test --version
+
+      - name: Start container and verify runtime config persistence
+        run: |
+          set -e
+          docker volume create quantus-node-test-data
+          docker run --rm -d --name quantus-node-test-1 -v quantus-node-test-data:/data quantus-node:test
+          for i in $(seq 1 60); do
+            if docker exec quantus-node-test-1 test -f /data/quantus-node.env && \
+               docker exec quantus-node-test-1 test -f /data/node_key.p2p; then
+              break
+            fi
+            sleep 1
+          done
+          docker exec quantus-node-test-1 test -f /data/quantus-node.env
+          docker exec quantus-node-test-1 test -f /data/node_key.p2p
+          INNER_HASH="$(docker exec quantus-node-test-1 sed -n 's/^INNER_HASH=//p' /data/quantus-node.env)"
+          test -n "$INNER_HASH"
+          case "$INNER_HASH" in
+            0x*) ;;
+            *) echo "INNER_HASH is not 0x-prefixed"; exit 1 ;;
+          esac
+          docker logs quantus-node-test-1
+          docker top quantus-node-test-1 | grep -- '--validator'
+          docker top quantus-node-test-1 | grep -- '--rewards-inner-hash'
+          if docker top quantus-node-test-1 | grep -- '--miner-listen-port'; then
+            echo "Unexpected external miner listener argument"
+            exit 1
+          fi
+          docker stop quantus-node-test-1
+          echo "$INNER_HASH" > /tmp/first-inner-hash
+
+      - name: Verify persistent /data across container restart
+        run: |
+          set -e
+          docker run --rm -d --name quantus-node-test-2 -v quantus-node-test-data:/data quantus-node:test
+          sleep 5
+          INNER_HASH_2="$(docker exec quantus-node-test-2 sed -n 's/^INNER_HASH=//p' /data/quantus-node.env)"
+          FIRST_INNER_HASH="$(cat /tmp/first-inner-hash)"
+          test "$INNER_HASH_2" = "$FIRST_INNER_HASH"
+          docker exec quantus-node-test-2 test -f /data/node_key.p2p
+          docker logs quantus-node-test-2
+          docker top quantus-node-test-2 | grep -- '--validator'
+          docker stop quantus-node-test-2
+          docker volume rm quantus-node-test-data
+
+  publish:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
     permissions:
       contents: read
       packages: write
@@ -38,66 +108,8 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./node
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: |
             ${{ env.NODE_IMAGE }}:latest
             ${{ env.NODE_IMAGE }}:v1.0.2-Qm
-
-  build-miner:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push Quantus Miner image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./miner
-          platforms: linux/amd64
-          push: true
-          tags: |
-            ${{ env.MINER_IMAGE }}:latest
-            ${{ env.MINER_IMAGE }}:v4.2.0
-
-  build-dashboard:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push Quantus Dashboard image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./dashboard
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ${{ env.DASHBOARD_IMAGE }}:latest
-            ${{ env.DASHBOARD_IMAGE }}:v1.0.0

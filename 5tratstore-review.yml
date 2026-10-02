@@ -1,0 +1,38 @@
+schemaVersion: 1
+status: proposed
+appId: quantus-node
+appVersion: 1.0.2
+reviewedAt: ""
+reviewedBy: ""
+upstream:
+  sourceUrl: https://github.com/Quantus-Network/chain
+  license: MIT
+  licenseEvidence: https://github.com/Quantus-Network/chain/blob/main/LICENSE
+rights:
+  packageOriginal: true
+  softwareDistributionCleared: false
+  containerUseCleared: false
+  listingTextCleared: true
+  artworkCleared: false
+  noticesIncluded: false
+compatibility:
+  osVersions:
+    - pending-maintainer-test
+  architectures:
+    - amd64
+  installTested: false
+  startTested: false
+  updateTested: false
+  uninstallTested: false
+security:
+  privileged: false
+  hostNetwork: false
+  dockerSocket: false
+  hostMountsReviewed: false
+  devicesReviewed: false
+  networkEndpointsReviewed: false
+notes: >-
+  Node-only package. Solo mining uses the node's built-in miner; no separate
+  quantus-miner service and no dashboard are included. The container downloads
+  the official Quantus Node v1.0.2-Qm linux/amd64 artifact and verifies the
+  provided SHA256 before installation.

@@ -1,0 +1,31 @@
+id: quantus-node
+name: Quantus Node
+tagline: Run a Quantus Network blockchain node
+description: >-
+  Quantus Network node for blockchain synchronization and validation.
+  Uses the official Quantus Node v1.0.2-Qm binary and the node's built-in solo miner.
+  Persists blockchain data, node keys, and rewards configuration in managed app storage.
+version: 1.0.2
+category: Mining infrastructure
+developer: Quantus Network
+website: https://quantus.network/
+repo: https://github.com/Quantus-Network/chain
+support: https://github.com/Quantus-Network/chain/issues
+icon: icon.png
+port: 8080
+path: /
+services:
+  app_proxy:
+    environment:
+      APP_HOST: node
+      APP_PORT: 9944
+  node:
+    image: ghcr.io/rubel0278-bot/quantus-node:v1.0.2-Qm@sha256:PENDING_PUBLISH
+    restart: unless-stopped
+    user: "10001:10001"
+    volumes:
+      - ${APP_DATA_DIR}/data:/data
+    ports:
+      - "30333:30333"
+    security_opt:
+      - no-new-privileges:true

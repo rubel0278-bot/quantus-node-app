@@ -14,8 +14,9 @@ NODE_KEY_FILE="/opt/quantus-node/data/node_key.p2p"
 # Generate with: quantus-node key quantus --scheme wormhole
 INNER_HASH=""
 
-# Enable external miner (QUIC server on MINER_PORT)
-ENABLE_EXTERNAL_MINER=true
+# External miner is disabled for this node-only package.
+# Solo mining uses the node's built-in miner by omitting --miner-listen-port.
+ENABLE_EXTERNAL_MINER=false
 MINER_PORT=9833
 CPU_WORKERS=4
 GPU_DEVICES=0

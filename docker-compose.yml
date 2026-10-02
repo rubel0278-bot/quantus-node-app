@@ -1,0 +1,16 @@
+services:
+  app_proxy:
+    environment:
+      APP_HOST: node
+      APP_PORT: 9944
+
+  node:
+    image: ghcr.io/rubel0278-bot/quantus-node:v1.0.2-Qm@sha256:PENDING_PUBLISH
+    restart: unless-stopped
+    user: "10001:10001"
+    volumes:
+      - ${APP_DATA_DIR}/data:/data
+    ports:
+      - "30333:30333"
+    security_opt:
+      - no-new-privileges:true

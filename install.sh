@@ -185,7 +185,6 @@ ExecStart=${BIN_DIR}/quantus-node \\
     --base-path ${BASE_PATH} \\
     --node-key-file ${NODE_KEY_FILE} \\
     --rewards-inner-hash ${INNER_HASH} \\
-    --miner-listen-port ${MINER_PORT} \\
     --port ${P2P_PORT} \\
     --rpc-port ${RPC_PORT} \\
     --prometheus-port ${PROMETHEUS_PORT} \\
