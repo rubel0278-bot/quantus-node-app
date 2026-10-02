@@ -1,0 +1,45 @@
+name: Quantus 5tratStore Package Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'GitHub Release tag for the store package'
+        required: true
+        default: 'store-package-v1.0.2'
+
+jobs:
+  package-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate store files
+        run: |
+          test -f 5tratstore-app.yml
+          test -f docker-compose.yml
+          test -f 5tratstore-review.yml
+          test -f LICENSES.md
+          test -f icon.png
+
+      - name: Create gzip-compressed store archive
+        run: |
+          tar -czf quantus-node-5tratstore-package-${{ github.event.inputs.tag_name }}.tar.gz \
+            5tratstore-app.yml \
+            docker-compose.yml \
+            5tratstore-review.yml \
+            LICENSES.md \
+            icon.png
+
+      - name: Publish GitHub Release asset
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.inputs.tag_name }}
+          name: Quantus Node 5tratStore Package ${{ github.event.inputs.tag_name }}
+          files: quantus-node-5tratstore-package-${{ github.event.inputs.tag_name }}.tar.gz
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
