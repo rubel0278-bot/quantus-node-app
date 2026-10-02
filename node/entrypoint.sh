@@ -40,6 +40,13 @@ PROMETHEUS_PORT="${PROMETHEUS_PORT:-9615}"
 SYNC_MODE="${SYNC_MODE:-full}"
 MAX_BLOCKS_PER_REQUEST="${MAX_BLOCKS_PER_REQUEST:-64}"
 
+SOLO_MINING_ENABLED=true
+if [ -f "$BASE_PATH/dashboard-settings.json" ]; then
+  solo="$(sed -n 's/.*"solo_mining_enabled": *\([^,}]*\).*/\1/p' "$BASE_PATH/dashboard-settings.json" | head -n1)"
+  pool="$(sed -n 's/.*"pool_mining_enabled": *\([^,}]*\).*/\1/p' "$BASE_PATH/dashboard-settings.json" | head -n1)"
+  [ "$solo" = "false" ] && SOLO_MINING_ENABLED=false
+fi
+
 if [ ! -f "$NODE_KEY_FILE" ]; then
   mkdir -p "$(dirname "$NODE_KEY_FILE")"
   quantus-node key generate-node-key --file "$NODE_KEY_FILE"
@@ -66,16 +73,30 @@ if [ -z "${INNER_HASH:-}" ]; then
   chmod 600 "$CONFIG_FILE"
 fi
 
-exec quantus-node \
-  --name "$NODE_NAME" \
-  --validator \
-  --chain "$CHAIN" \
-  --base-path "$BASE_PATH" \
-  --node-key-file "$NODE_KEY_FILE" \
-  --rewards-inner-hash "$INNER_HASH" \
-  --port "$P2P_PORT" \
-  --rpc-port "$RPC_PORT" \
-  --prometheus-port "$PROMETHEUS_PORT" \
-  --sync "$SYNC_MODE" \
-  --max-blocks-per-request "$MAX_BLOCKS_PER_REQUEST" \
-  --rpc-methods safe
+if [ "$SOLO_MINING_ENABLED" = "true" ]; then
+  exec quantus-node \
+    --name "$NODE_NAME" \
+    --validator \
+    --chain "$CHAIN" \
+    --base-path "$BASE_PATH" \
+    --node-key-file "$NODE_KEY_FILE" \
+    --rewards-inner-hash "$INNER_HASH" \
+    --port "$P2P_PORT" \
+    --rpc-port "$RPC_PORT" \
+    --prometheus-port "$PROMETHEUS_PORT" \
+    --sync "$SYNC_MODE" \
+    --max-blocks-per-request "$MAX_BLOCKS_PER_REQUEST" \
+    --rpc-methods safe
+else
+  exec quantus-node \
+    --name "$NODE_NAME" \
+    --chain "$CHAIN" \
+    --base-path "$BASE_PATH" \
+    --node-key-file "$NODE_KEY_FILE" \
+    --port "$P2P_PORT" \
+    --rpc-port "$RPC_PORT" \
+    --prometheus-port "$PROMETHEUS_PORT" \
+    --sync "$SYNC_MODE" \
+    --max-blocks-per-request "$MAX_BLOCKS_PER_REQUEST" \
+    --rpc-methods safe
+fi
