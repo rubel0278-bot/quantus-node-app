@@ -27,9 +27,9 @@ jobs:
 
       - name: Create gzip-compressed store archive
         run: |
-          mkdir -p quantus-node
-          cp 5tratstore-app.yml docker-compose.yml 5tratstore-review.yml LICENSES.md icon.png quantus-node/
-          tar -czf quantus-node-5tratstore-package-${{ github.event.inputs.tag_name }}.tar.gz quantus-node
+          mkdir -p /tmp/5tratstore-package/quantus-node
+          cp 5tratstore-app.yml docker-compose.yml 5tratstore-review.yml LICENSES.md icon.png /tmp/5tratstore-package/quantus-node/
+          tar -czf quantus-node-5tratstore-package-${{ github.event.inputs.tag_name }}.tar.gz -C /tmp/5tratstore-package quantus-node
 
       - name: Publish GitHub Release asset
         uses: softprops/action-gh-release@v1
