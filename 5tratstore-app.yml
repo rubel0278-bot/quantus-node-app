@@ -20,7 +20,7 @@ services:
       APP_HOST: node
       APP_PORT: 9944
   node:
-    image: ghcr.io/rubel0278-bot/quantus-node:v1.0.2-Qm@sha256:PENDING_PUBLISH
+    image: ghcr.io/rubel0278-bot/quantus-node:v1.0.2-Qm@sha256:b4b12e37beb9754e773e9e93ec892eeb895029c97f81f8213f005a791c715dcf
     restart: unless-stopped
     user: "10001:10001"
     volumes:
