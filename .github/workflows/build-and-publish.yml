@@ -11,6 +11,7 @@ on:
 env:
   REGISTRY: ghcr.io
   NODE_IMAGE: ghcr.io/rubel0278-bot/quantus-node
+  DASHBOARD_IMAGE: ghcr.io/rubel0278-bot/quantus-node-dashboard
 
 jobs:
   build-and-test:
@@ -113,3 +114,13 @@ jobs:
           tags: |
             ${{ env.NODE_IMAGE }}:latest
             ${{ env.NODE_IMAGE }}:v1.0.2-Qm
+
+      - name: Build and push Quantus Node Dashboard image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./dashboard
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.DASHBOARD_IMAGE }}:latest
+            ${{ env.DASHBOARD_IMAGE }}:v1.0.0
