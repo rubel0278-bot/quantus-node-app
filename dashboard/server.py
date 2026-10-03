@@ -67,6 +67,13 @@ def node_running_info():
         sync_state = rpc("system_syncState", rid=3)
         best_block = sync_state.get("bestBlock") or sync_state.get("bestBlockNumber") or height
         try:
+            finalized_hash = rpc("chain_getFinalizedHead", rid=4)
+            finalized_header = rpc("chain_getHeader", params=[finalized_hash], rid=5)
+            finalized_hex = finalized_header.get("number", "0x0")
+            finalized = int(finalized_hex, 16) if str(finalized_hex).startswith("0x") else 0
+        except Exception:
+            finalized = 0
+        try:
             best = int(str(best_block), 0)
         except Exception:
             best = height
@@ -83,6 +90,8 @@ def node_running_info():
             "chain": "mainnet",
             "block_height": height,
             "headers": height,
+            "finalized_block": finalized,
+            "best_block": height,
             "peers": peers,
             "isSyncing": is_syncing,
             "shouldHavePeers": bool(health.get("shouldHavePeers", False)),
@@ -245,7 +254,7 @@ button.secondary{background:#222;color:#eee;border:1px solid #333}
 </div>
 <script>
 function showTab(id){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById(id).classList.add('active');event.currentTarget.classList.add('active')}
-async function loadStatus(){try{let r=await fetch('/api/status');let j=await r.json();document.getElementById('syncText').textContent=j.state;document.getElementById('syncCircle').textContent=j.sync_percentage===null?'-':(j.sync_percentage+'%');document.getElementById('syncBadge').textContent=j.badge;document.getElementById('blocks').textContent=j.block_height??'-';document.getElementById('headers').textContent=j.headers??'-';document.getElementById('peers').textContent=j.peers??'-';document.getElementById('chainLag').textContent=j.chain_lag??'-';document.getElementById('mempool').textContent=j.mempool??'-';document.getElementById('disk').textContent=j.disk??'-';document.getElementById('chainMeta').textContent=j.chain||'main';document.getElementById('lastBlockLine').textContent=j.last_block?('Last block '+j.last_block_age+' ago | '+j.last_block):'';document.getElementById('soloPort').textContent=j.solo_port??'9333';document.getElementById('soloWorkers').textContent=j.solo_workers??'-';document.getElementById('soloHashrate').textContent=j.solo_hashrate??'-';document.getElementById('readinessPills').innerHTML=(j.readiness_pills||[]).map(p=>'<span class="pill">'+p+'</span>').join('');document.getElementById('checklist').innerHTML=(j.checklist||[]).map(c=>'<div class="metric"><label>'+c.title+'</label><div class="val" style="color:'+(c.ready?'#00ff88':'#ffaa00')+'">'+(c.ready?'Ready':'Needs attention')+'</div><div class="small">'+c.detail+'</div></div>').join('');document.getElementById('miningMode').textContent=j.solo_mining?'Solo':'Off';document.getElementById('soloState').textContent=j.solo_mining?'Active':'Inactive';document.getElementById('poolState').textContent=j.pool_mining?'Active':'Inactive';document.getElementById('soloToggle').checked=j.solo_mining;document.getElementById('poolToggle').checked=j.pool_mining;document.getElementById('settingsSolo').checked=j.solo_mining;document.getElementById('settingsPool').checked=j.pool_mining}catch(e){}}
+async function loadStatus(){try{let r=await fetch('/api/status');let j=await r.json();document.getElementById('syncText').textContent=j.state;document.getElementById('syncCircle').textContent=j.sync_percentage===null?'-':(j.sync_percentage+'%');document.getElementById('syncBadge').textContent=j.badge;document.getElementById('blocks').textContent=j.block_height??'-';document.getElementById('headers').textContent=j.headers??'-';document.getElementById('peers').textContent=j.peers??'-';document.getElementById('chainLag').textContent=j.chain_lag??'-';document.getElementById('mempool').textContent=j.mempool??'-';document.getElementById('disk').textContent=j.disk??'-';document.getElementById('chainMeta').textContent=(j.chain||'main')+' | peers '+j.peers+' | finalized #'+(j.finalized_block??'-');document.getElementById('lastBlockLine').textContent=j.last_block?('Best '+j.last_block+' | Finalized #'+(j.finalized_block??'-')+' | Peers '+j.peers):'';document.getElementById('soloPort').textContent=j.solo_port??'9333';document.getElementById('soloWorkers').textContent=j.solo_workers??'-';document.getElementById('soloHashrate').textContent=j.solo_hashrate??'-';document.getElementById('readinessPills').innerHTML=(j.readiness_pills||[]).map(p=>'<span class="pill">'+p+'</span>').join('');document.getElementById('checklist').innerHTML=(j.checklist||[]).map(c=>'<div class="metric"><label>'+c.title+'</label><div class="val" style="color:'+(c.ready?'#00ff88':'#ffaa00')+'">'+(c.ready?'Ready':'Needs attention')+'</div><div class="small">'+c.detail+'</div></div>').join('');document.getElementById('miningMode').textContent=j.solo_mining?'Solo':'Off';document.getElementById('soloState').textContent=j.solo_mining?'Active':'Inactive';document.getElementById('poolState').textContent=j.pool_mining?'Active':'Inactive';document.getElementById('soloToggle').checked=j.solo_mining;document.getElementById('poolToggle').checked=j.pool_mining;document.getElementById('settingsSolo').checked=j.solo_mining;document.getElementById('settingsPool').checked=j.pool_mining}catch(e){}}
 async function loadSettings(){let r=await fetch('/api/settings');let s=await r.json();document.getElementById('poolHost').textContent=s.pool_stratum_host||'-';document.getElementById('poolPort').textContent=s.pool_stratum_port||'-';document.getElementById('poolPreset').textContent=s.pool_preset||'-'}
 async function saveSettings(){let s={solo_mining_enabled:document.getElementById('settingsSolo').checked,pool_mining_enabled:document.getElementById('settingsPool').checked};await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(s)});loadSettings();loadStatus();alert('Settings saved. Restart the app to apply mining mode changes.')}
 setInterval(loadStatus,3000);loadStatus();loadSettings();
