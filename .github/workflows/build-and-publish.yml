@@ -105,16 +105,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Quantus Node image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./node
-          platforms: linux/amd64
-          push: true
-          tags: |
-            ${{ env.NODE_IMAGE }}:latest
-            ${{ env.NODE_IMAGE }}:v1.0.2-Qm
-
       - name: Build and push Quantus Node Dashboard image
         uses: docker/build-push-action@v5
         with:
